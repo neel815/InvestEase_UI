@@ -13,7 +13,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -33,6 +33,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
+  // Listen for unauthorized event (triggered by axios interceptor)
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      clearAuthState();
+    };
+
+    window.addEventListener("unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("unauthorized", handleUnauthorized);
+  }, []);
+
   const login = async (email: string, password: string) => {
     try {
       const response = await axios.post("/auth/login", {
@@ -47,10 +57,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const clearAuthState = () => {
     localStorage.removeItem("token");
     setToken(null);
     setUser(null);
+  };
+
+  const logout = async () => {
+    try {
+      // Call logout endpoint to blacklist token on server
+      await axios.post("/auth/logout");
+    } catch (error) {
+      // Ignore errors - frontend always cleans up regardless of server state
+      console.error("Logout request failed, but clearing local state anyway", error);
+    } finally {
+      // Always clear local state
+      clearAuthState();
+    }
   };
 
   return (

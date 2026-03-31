@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #334155;
 }
 
 @theme inline {
@@ -14,13 +14,48 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #f8fafc;
+    --foreground: #334155;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply text-slate-900;
+  }
+
+  p,
+  span,
+  label {
+    @apply text-slate-700;
+  }
+}
+
+@layer components {
+  .app-card {
+    @apply bg-white rounded-2xl border border-slate-200 shadow-sm;
+  }
+
+  .btn-primary {
+    @apply bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition duration-200;
+  }
+
+  .btn-secondary {
+    @apply bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold transition duration-200;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition duration-200;
+  }
 }

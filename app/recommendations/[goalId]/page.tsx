@@ -25,6 +25,8 @@ export default function RecommendationsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [selectedBasket, setSelectedBasket] = useState<BasketType | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [pollCountdown, setPollCountdown] = useState(5);
 
   useEffect(() => {
     if (!goalId) {
@@ -32,14 +34,49 @@ export default function RecommendationsPage() {
     }
 
     let cancelled = false;
+    let pollTimer: NodeJS.Timeout | null = null;
+    let countdownTimer: NodeJS.Timeout | null = null;
 
     const fetchRecommendations = async () => {
       try {
         setIsLoading(true);
+        setIsProcessing(false);
         setError(null);
-        const response = await axios.get<GoalRecommendations>(`/recommendations/${goalId}`);
-        if (!cancelled) {
-          setData(response.data);
+        
+        try {
+          const response = await axios.get<GoalRecommendations>(`/recommendations/${goalId}`);
+          
+          // Check if response is 202 (still processing)
+          if (response.status === 202 || response.data?.status === 202) {
+            if (!cancelled) {
+              setIsProcessing(true);
+              setData(null);
+              setPollCountdown(5);
+              // Set up auto-polling every 5 seconds
+              startPolling();
+            }
+            return;
+          }
+          
+          if (!cancelled) {
+            setData(response.data);
+            setIsProcessing(false);
+            // Stop polling once we get real data
+            if (pollTimer) clearTimeout(pollTimer);
+            if (countdownTimer) clearInterval(countdownTimer);
+          }
+        } catch (err) {
+          // Check if error response is 202
+          if (isAxiosError(err) && err.response?.status === 202) {
+            if (!cancelled) {
+              setIsProcessing(true);
+              setData(null);
+              setPollCountdown(5);
+              startPolling();
+            }
+            return;
+          }
+          throw err;
         }
       } catch (err: unknown) {
         if (!cancelled) {
@@ -49,6 +86,10 @@ export default function RecommendationsPage() {
               ? err.response.data.detail
               : "Failed to load recommendations";
           setError(message);
+          setIsProcessing(false);
+          // Stop polling on error
+          if (pollTimer) clearTimeout(pollTimer);
+          if (countdownTimer) clearInterval(countdownTimer);
         }
       } finally {
         if (!cancelled) {
@@ -57,10 +98,30 @@ export default function RecommendationsPage() {
       }
     };
 
+    const startPolling = () => {
+      if (pollTimer) clearTimeout(pollTimer);
+      if (countdownTimer) clearInterval(countdownTimer);
+      
+      // Start countdown display
+      let remaining = 5;
+      setPollCountdown(remaining);
+      countdownTimer = setInterval(() => {
+        remaining--;
+        setPollCountdown(remaining);
+        if (remaining <= 0 && !cancelled) {
+          clearInterval(countdownTimer);
+          // Fetch again after countdown
+          fetchRecommendations();
+        }
+      }, 1000);
+    };
+
     fetchRecommendations();
 
     return () => {
       cancelled = true;
+      if (pollTimer) clearTimeout(pollTimer);
+      if (countdownTimer) clearInterval(countdownTimer);
     };
   }, [goalId]);
 
@@ -125,7 +186,45 @@ export default function RecommendationsPage() {
               </div>
             )}
 
-            {isLoading ? (
+            {isProcessing ? (
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-12 text-center space-y-4">
+                <div className="flex justify-center">
+                  <div className="animate-spin">
+                    <svg
+                      className="w-8 h-8 text-blue-600"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-blue-900 mb-2">
+                    Fetching Latest Fund Data
+                  </p>
+                  <p className="text-sm text-blue-700 mb-4">
+                    We are analyzing the latest fund performance data for you. This takes about 30 seconds on the first load.
+                  </p>
+                  <p className="text-sm font-medium text-blue-600">
+                    Checking again in {pollCountdown} seconds...
+                  </p>
+                </div>
+              </div>
+            ) : isLoading ? (
               <div className="rounded-2xl border border-slate-200 p-12 text-center">
                 <p className="text-slate-500 font-medium">Loading recommendations...</p>
               </div>
@@ -161,7 +260,7 @@ export default function RecommendationsPage() {
                       <div className="space-y-3 flex-1">
                         {basket.funds.map((fund) => (
                           <div
-                            key={fund.scheme_code}
+                            key={`${basket.basket_type}-${fund.scheme_code}`}
                             className="rounded-xl border border-slate-200 bg-white p-4"
                           >
                             <div className="flex items-start justify-between gap-3">

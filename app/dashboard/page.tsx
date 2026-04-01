@@ -42,38 +42,26 @@ export default function DashboardPage() {
     const fetchStats = async () => {
       try {
         setIsLoading(true);
-        const goalsResponse = await axios.get<Goal[]>("/goals/me");
-        
-        // Calculate stats based on goals
-        let totalPortfolioValue = 0;
-        let totalInvested = 0;
-        let overallReturnPercentage = 0;
-        let nextSipDate: string | null = null;
-
-        if (goalsResponse.data.length > 0) {
-          // TODO: Calculate actual portfolio stats from goal data
-          // For now, showing placeholder values
-          goalsResponse.data.forEach((goal) => {
-            totalInvested += goal.target_amount * 0.1; // Placeholder
-          });
-          totalPortfolioValue = totalInvested * 1.05; // Assume 5% return
-          overallReturnPercentage = 5;
-          
-          // Get earliest target date as next SIP date
-          const dates = goalsResponse.data
-            .map(g => new Date(g.target_date))
-            .sort((a, b) => a.getTime() - b.getTime());
-          if (dates.length > 0) {
-            nextSipDate = dates[0].toISOString().split('T')[0];
-          }
-        }
+        const res = await axios.get("/portfolio/summary");
+        const data = res.data as any;
 
         setStats({
-          totalPortfolioValue,
-          totalInvested,
-          overallReturnPercentage,
-          nextSipDate,
-          goals: goalsResponse.data,
+          totalPortfolioValue: data.current_value || 0,
+          totalInvested: data.total_invested || 0,
+          overallReturnPercentage: data.overall_return_percentage || 0,
+          nextSipDate: data.next_sip_due || null,
+          goals: data.per_goal?.map((g: any) => ({
+            id: g.goal_id,
+            goal_type: g.goal_type,
+            target_amount: g.target_amount,
+            target_date: "",
+            investment_mode: "",
+            created_at: "",
+            selected_basket: g.selected_basket,
+            total_invested: g.total_invested,
+            current_value: g.current_value,
+            progress_percentage: g.progress_percentage,
+          })) || [],
         });
       } catch (err: any) {
         const message = err.response?.data?.detail || "Failed to fetch portfolio stats";
@@ -215,6 +203,47 @@ export default function DashboardPage() {
                   <p className="text-center text-sm text-slate-500 mt-4">
                     {stats.goals.length} {stats.goals.length === 1 ? "goal" : "goals"} in progress
                   </p>
+                </div>
+              )}
+
+              {/* Per-goal cards */}
+              {stats.goals.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {stats.goals.map((g: any) => (
+                    <div key={g.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-500">{g.goal_type}</p>
+                          <h3 className="text-xl font-bold text-slate-900">{g.goal_name || g.goal_type}</h3>
+                          <p className="text-sm text-slate-500">Target: {currency.format(g.target_amount)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-slate-500">Monthly SIP</p>
+                          <p className="text-lg font-bold text-slate-900">{g.total_invested > 0 ? currency.format(g.total_invested) : "—"}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        {g.total_invested > 0 ? (
+                          <div>
+                            <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                              <div className="h-3 bg-indigo-600" style={{ width: `${Math.min(100, (g.progress_percentage || 0))}%` }} />
+                            </div>
+                            <p className="text-xs text-slate-500 mt-2">{(g.progress_percentage || 0).toFixed(1)}% of goal</p>
+                          </div>
+                        ) : (
+                          <div className="mt-3">
+                            <button
+                              onClick={() => router.push(`/recommendations/${g.id}`)}
+                              className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl font-semibold"
+                            >
+                              Start Investing
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
 

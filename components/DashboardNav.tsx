@@ -70,6 +70,18 @@ export function DashboardNav() {
         </Link>
 
         <Link
+          href="/portfolio"
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl transition duration-200 ${
+            isActive("/portfolio")
+              ? "bg-indigo-50 text-indigo-600 font-medium"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <span className="text-xl">◈</span>
+          <span>Portfolio</span>
+        </Link>
+
+        <Link
           href="/dashboard"
           className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-100 transition duration-200"
         >

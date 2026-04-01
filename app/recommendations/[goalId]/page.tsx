@@ -149,7 +149,8 @@ export default function RecommendationsPage() {
         selected_basket: basketType,
       });
 
-      setSelectedBasket(basketType);
+      // Redirect to SIP confirmation screen
+      router.push(`/sip-confirm/${goalId}`);
     } catch (err: unknown) {
       const message =
         isAxiosError<{ detail?: string }>(err) &&

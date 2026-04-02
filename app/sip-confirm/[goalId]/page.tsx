@@ -16,6 +16,7 @@ export default function SIPConfirmPage() {
   const [sipPlan, setSipPlan] = useState<SipPlan | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
   const [minAmount, setMinAmount] = useState<number | null>(null);
+  const [sipDay, setSipDay] = useState<number>(1);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -44,11 +45,41 @@ export default function SIPConfirmPage() {
     load();
   }, [goalId]);
 
-  const firstOfNextMonth = () => {
-    const now = new Date();
-    const year = now.getFullYear() + (now.getMonth() === 11 ? 1 : 0);
-    const month = now.getMonth() === 11 ? 0 : now.getMonth() + 1;
-    const d = new Date(year, month, 1);
+  // Calculate next SIP due date based on selected sip_day
+  // Handles edge cases where the target day doesn't exist (e.g., Feb 30 -> Feb 28/29)
+  const calculateNextSipDate = (day: number): string => {
+    const today = new Date();
+    let currentYear = today.getFullYear();
+    let currentMonth = today.getMonth();
+    const currentDate = today.getDate();
+
+    // Helper: get last day of a given month
+    const getLastDayOfMonth = (year: number, month: number): number => {
+      return new Date(year, month + 1, 0).getDate();
+    };
+
+    // Try this month with edge case handling
+    const lastDayThisMonth = getLastDayOfMonth(currentYear, currentMonth);
+    const targetDayThisMonth = Math.min(day, lastDayThisMonth);
+    
+    if (currentDate < targetDayThisMonth) {
+      const d = new Date(currentYear, currentMonth, targetDayThisMonth);
+      return d.toLocaleString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+    }
+
+    // If current date is on or after sip_day this month, use next month
+    let nextMonth = currentMonth + 1;
+    let nextYear = currentYear;
+    if (nextMonth > 11) {
+      nextMonth = 0;
+      nextYear = currentYear + 1;
+    }
+
+    // Apply edge case handling for next month too
+    const lastDayNextMonth = getLastDayOfMonth(nextYear, nextMonth);
+    const targetDayNextMonth = Math.min(day, lastDayNextMonth);
+    
+    const d = new Date(nextYear, nextMonth, targetDayNextMonth);
     return d.toLocaleString("en-IN", { day: "numeric", month: "long", year: "numeric" });
   };
 
@@ -65,6 +96,7 @@ export default function SIPConfirmPage() {
         goal_id: goalId,
         selected_basket: selectedBasket.basket_type,
         monthly_amount: amount,
+        sip_day: sipDay,
       });
       router.push("/dashboard");
     } catch (err: any) {
@@ -89,31 +121,33 @@ export default function SIPConfirmPage() {
               </div>
             )}
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
-              <h2 className="text-lg font-semibold">Selected Basket</h2>
-              {selectedBasket ? (
-                <div className="space-y-3">
-                  <p className="font-bold text-slate-900">{selectedBasket.basket_type.toUpperCase()}</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {selectedBasket.funds.map((f: any) => (
-                      <div key={f.scheme_code} className="rounded-xl border p-3">
-                        <p className="font-semibold text-slate-900">{f.scheme_name}</p>
-                        <p className="text-sm text-slate-500">{f.category}</p>
-                        <div className="mt-2 flex gap-2 text-sm">
-                          <div className="text-green-700">1Y: {f.returns_1y}%</div>
-                          <div className="text-green-700">3Y: {f.returns_3y}%</div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold mb-4">Selected Basket</h2>
+                {selectedBasket ? (
+                  <div className="space-y-3">
+                    <p className="font-bold text-slate-900">{selectedBasket.basket_type.toUpperCase()}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {selectedBasket.funds.map((f: any) => (
+                        <div key={f.scheme_code} className="rounded-xl border p-3">
+                          <p className="font-semibold text-slate-900">{f.scheme_name}</p>
+                          <p className="text-sm text-slate-500">{f.category}</p>
+                          <div className="mt-2 flex gap-2 text-sm">
+                            <div className="text-green-700">1Y: {f.returns_1y}%</div>
+                            <div className="text-green-700">3Y: {f.returns_3y}%</div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <p className="text-slate-500">Loading basket...</p>
-              )}
+                ) : (
+                  <p className="text-slate-500">Loading basket...</p>
+                )}
+              </div>
 
-              <div className="pt-4">
-                <label className="block text-sm font-semibold text-slate-700">Monthly SIP Amount</label>
-                <div className="mt-2 flex items-center gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Monthly SIP Amount</label>
+                <div className="flex items-center gap-3">
                   <input
                     type="number"
                     min={minAmount || 0}
@@ -128,13 +162,39 @@ export default function SIPConfirmPage() {
                 )}
               </div>
 
-              <div className="pt-4 text-sm text-slate-600">Your first SIP will be on {firstOfNextMonth()}</div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-3">SIP Date of Month (1-31)</label>
+                <div className="grid grid-cols-7 gap-2">
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                    <button
+                      key={day}
+                      onClick={() => setSipDay(day)}
+                      className={`aspect-square rounded-lg font-semibold text-sm transition ${
+                        sipDay === day
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+                {sipDay >= 29 && (
+                  <p className="text-xs text-slate-600 mt-3 p-2 bg-slate-50 rounded-lg">
+                    ℹ️ For February and months with fewer days, your SIP will be scheduled on the last valid day of that month.
+                  </p>
+                )}
+              </div>
 
-              <div className="pt-6">
+              <div className="pt-2 text-sm text-slate-600 font-medium">
+                Your first SIP will be on {calculateNextSipDate(sipDay)}
+              </div>
+
+              <div className="pt-4">
                 <button
                   onClick={handleConfirm}
                   disabled={isSaving}
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold"
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold disabled:opacity-50"
                 >
                   {isSaving ? "Starting..." : "Confirm & Start SIP"}
                 </button>

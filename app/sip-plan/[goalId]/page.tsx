@@ -343,6 +343,12 @@ export default function SipPlanPage() {
 
                 <div className="pt-2 flex gap-3">
                   <button
+                    onClick={() => router.push(`/goals/${goalId}`)}
+                    className="px-8 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold transition duration-200"
+                  >
+                    View Goal Details
+                  </button>
+                  <button
                     onClick={() => router.push(`/recommendations/${goalId}`)}
                     className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition duration-200"
                   >

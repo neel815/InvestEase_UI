@@ -118,17 +118,25 @@ function SIPList({ goalId, onToggle }: { goalId: string; onToggle: (sipId: strin
   return (
     <div className="space-y-3">
       {sips.map((s) => (
-        <div key={s.id} className="flex items-center justify-between border rounded-lg p-3">
-          <div>
-            <p className="font-semibold">₹{s.monthly_amount} / month</p>
-            <p className="text-xs text-slate-500">Next: {new Date(s.next_due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
-          </div>
-          <div>
-            {s.status === "active" ? (
-              <button onClick={() => onToggle(s.id, "pause")} className="px-3 py-2 bg-slate-100 rounded-md">Pause</button>
-            ) : (
-              <button onClick={() => onToggle(s.id, "resume")} className="px-3 py-2 bg-indigo-600 text-white rounded-md">Resume</button>
-            )}
+        <div key={s.id} className="border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold">₹{s.monthly_amount} / month</p>
+              <p className="text-sm text-slate-600">SIP every {s.sip_day}th of the month</p>
+              <p className="text-xs text-slate-500">Next: {new Date(s.next_due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+              {s.sip_day >= 29 && (
+                <p className="text-xs text-slate-500 mt-2 p-2 bg-slate-50 rounded">
+                  ℹ️ For shorter months, SIP scheduled on the last valid day.
+                </p>
+              )}
+            </div>
+            <div>
+              {s.status === "active" ? (
+                <button onClick={() => onToggle(s.id, "pause")} className="px-3 py-2 bg-slate-100 rounded-md">Pause</button>
+              ) : (
+                <button onClick={() => onToggle(s.id, "resume")} className="px-3 py-2 bg-indigo-600 text-white rounded-md">Resume</button>
+              )}
+            </div>
           </div>
         </div>
       ))}
